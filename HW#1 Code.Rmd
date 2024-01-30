@@ -1,0 +1,142 @@
+---
+title: "HW#1"
+author: "Lucas Villanti"
+date: "2024-01-26"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(corrplot)
+```
+
+```{r}
+ioct <- read.csv("IOCT.csv")
+```
+
+#DATA EXPLORATION 
+#Consider plots that show distributions of variables of interest. Issues of collinearity. Modifications of covariates if necessary. Too much detail will definitely cause DPE to lose interest, too little detail will result in questions for your final models.
+
+```{r}
+#Histogram for Height
+ioct %>%
+  select(height) %>%
+  ggplot(aes(x = height)) +
+  geom_histogram(bins = 30, fill = "blue", color = "black") +
+  theme_minimal() +
+  labs(title = "Height Distribution", x = "Height", y = "Count")
+```
+
+```{r}
+#Histogram for Weight
+ioct %>%
+  select(weight) %>%
+  ggplot(aes(x = weight)) +
+  geom_histogram(bins = 30, fill = "blue", color = "black") +
+  theme_minimal() +
+  labs(title = "Weight Distribution", x = "Weight", y = "Count")
+```
+
+```{r}
+#Histogram for IOCT Times
+ioct %>%
+  select(IOCT_Time) %>%
+  ggplot(aes(x = IOCT_Time)) +
+  geom_histogram(bins = 30, fill = "blue", color = "black") +
+  theme_minimal() +
+  labs(title = "IOCT time Distribution", x = "IOCT TIMES", y = "Count")
+```
+
+```{r}
+#Correlation matrix
+
+cor_matrix <- cor(ioct[, c("height", "weight", "IOCT_Time", "pu_score", "su_score", "run_score", "APFT_Score")])
+corrplot(cor_matrix, method = "circle")
+```
+
+#DATA PREPARATION - Consider outliers. What will you do with highpoints that have high leverage? Will you transform any of your variables?
+
+```{r}
+#Looking for outliers
+
+#scatter plot for ioct and height
+plot(ioct$height,ioct$IOCT_Time,main = "IOCT vs Height",xlab = "Height", ylab = "IOCT_Time")
+
+#Going to remove the highest IOCT time(which is the outlier)
+ioct <- ioct[ioct$IOCT_Time < max(ioct$IOCT_Time), ]
+```
+
+
+```{r}
+#I will seperate the females and Males because there are different standards
+female_ioct <- ioct %>%
+  filter(sex == "F")
+male_ioct <- ioct %>%
+  filter(sex == "M")
+```
+
+#BUILD MODELS - Consider at least 3 different models, using different variables (or different transformations). If your models are nested conduct formal tests to decide on which model is the most appropriate. If the models are not nested consider using AIC or BIC to decide
+```{r}
+#Model 1 Height for Male
+model1_male <- lm(IOCT_Time ~ height, data = male_ioct)
+summary(model1_male)
+
+#Model 1 Height for Female
+model1_female <- lm(IOCT_Time ~ height, data = female_ioct)
+summary(model1_female)
+
+#model 1 height for all
+model1 <- lm(IOCT_Time ~ height, data = ioct)
+summary(model1)
+```
+
+```{r}
+#Model 2 with everything Male
+model2_male <- lm(IOCT_Time ~ height + weight + pu_score + su_score + run_score, data = male_ioct)
+summary(model2_male)
+
+#Model 2 with everything Female
+model2_female <- lm(IOCT_Time ~ height + weight + pu_score + su_score + run_score, data = female_ioct)
+summary(model2_female)
+
+#Model 2 not seperating
+model2 <- model2 <- lm(IOCT_Time ~ height + weight + APFT_Score + sex, data = ioct)
+summary(model2)
+```
+
+```{r}
+#model 3 - interaction : Male
+model_interaction_male <- lm(IOCT_Time ~ height + weight + pu_score * height + su_score + run_score, data = male_ioct)
+summary(model_interaction_male)
+
+#model 3 - interaction : Female
+model_interaction_female <- lm(IOCT_Time ~ height + weight + pu_score * height + su_score + run_score, data = female_ioct)
+summary(model_interaction_female)
+
+#model 3 not seperating male or female
+model3 <- lm(IOCT_Time ~ height * weight + APFT_Score + sex + CS, data = ioct)
+summary(model3)
+```
+
+
+```{r}
+#Testing Model 2 & 3 with anova
+anova(model2,model3)
+```
+
+```{r}
+#testing using Log Likelyhood test
+library(lmtest)
+
+lrtest(model2,model3)
+```
+
+
+#Final Model - Final model - Present your best model. Why did you select it? What is your answer to the research question? What are some limitations for your study? Based off of your model what is your predicted IOCT time?
+
+```{r}
+summary(model2)
+predict(model2, newdata = data.frame(height = 73, weight = 200, APFT_Score = 257, sex = "M"))
+```
+
